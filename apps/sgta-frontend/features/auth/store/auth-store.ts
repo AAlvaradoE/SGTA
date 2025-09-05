@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AuthState, AuthStore, User, UserRole } from "../types/auth.types";
 
-import { userPool } from "@/lib/cognito/cognito";
+import { userPool, isUserPoolConfigured } from "@/lib/cognito/cognito";
 import {
   AuthenticationDetails,
   CognitoUser,
@@ -49,6 +49,8 @@ const initialState: AuthState = {
   isAuthenticated: false,
 };
 
+const missingPoolMessage = "Cognito user pool is not configured";
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
@@ -57,10 +59,17 @@ export const useAuthStore = create<AuthStore>()(
       login: (email: string, password: string) => {
         set({ isLoading: true, error: null });
 
+        if (!isUserPoolConfigured) {
+          const err = new Error(missingPoolMessage);
+          set({ isLoading: false, error: err.message });
+          return Promise.reject(err);
+        }
+
+
         return new Promise<void>((resolve, reject) => {
           const cognitoUser = new CognitoUser({
             Username: email,
-            Pool: userPool,
+            Pool: pool,
           });
           const authDetails = new AuthenticationDetails({
             Username: email,
@@ -127,8 +136,10 @@ export const useAuthStore = create<AuthStore>()(
       },
       logout: () => {
         // 1. Clear Cognito session
-        const current = userPool.getCurrentUser();
-        if (current) current.signOut();
+        if (isUserPoolConfigured) {
+          const current = userPool.getCurrentUser();
+          if (current) current.signOut();
+        }
 
         // 2. Clear all local storage tokens and session state
         localStorage.removeItem("idToken");
@@ -145,6 +156,11 @@ export const useAuthStore = create<AuthStore>()(
 
       signUp: (email: string, password: string, name: string) => {
         set({ isLoading: true, error: null });
+        if (!isUserPoolConfigured) {
+          const err = new Error(missingPoolMessage);
+          set({ isLoading: false, error: err.message });
+          return Promise.reject(err);
+        }
         return new Promise<void>((resolve, reject) => {
           const parts = name.trim().split(" ");
           const givenName = parts.shift() || "";
@@ -157,7 +173,7 @@ export const useAuthStore = create<AuthStore>()(
               Value: familyName,
             }),
           ];
-          userPool.signUp(email, password, attributes, [], (err) => {
+          pool.signUp(email, password, attributes, [], (err) => {
             set({ isLoading: false });
             if (err) {
               set({ error: err.message || JSON.stringify(err) });
@@ -171,8 +187,13 @@ export const useAuthStore = create<AuthStore>()(
 
       confirmSignUp: (email: string, code: string) => {
         set({ isLoading: true, error: null });
+        if (!isUserPoolConfigured) {
+          const err = new Error(missingPoolMessage);
+          set({ isLoading: false, error: err.message });
+          return Promise.reject(err);
+        }
         return new Promise<void>((resolve, reject) => {
-          const user = new CognitoUser({ Username: email, Pool: userPool });
+          const user = new CognitoUser({ Username: email, Pool: pool });
           user.confirmRegistration(code, true, (err) => {
             set({ isLoading: false });
             if (err) {
@@ -187,8 +208,19 @@ export const useAuthStore = create<AuthStore>()(
       checkAuth: () => {
         set({ isLoading: true });
 
+        if (!isUserPoolConfigured) {
+          set({
+            isLoading: false,
+            isAuthenticated: false,
+            accessToken: null,
+            user: null,
+            idToken: null,
+          });
+          return Promise.resolve();
+        }
+
         // Try to get current user from Cognito
-        const current = userPool.getCurrentUser();
+        const current = pool.getCurrentUser();
 
         // Check for backup tokens from various sources (localStorage, sessionStorage)
         const hasBackupToken =
@@ -375,6 +407,9 @@ export const useAuthStore = create<AuthStore>()(
       loginWithProvider: (provider: "Google") => {
         set({ isLoading: true, error: null });
         try {
+          if (!isUserPoolConfigured) {
+            throw new Error(missingPoolMessage);
+          }
           if (provider === "Google") {
             // Redirect to the Cognito-hosted UI with Google selected as the identity provider
             const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN!;

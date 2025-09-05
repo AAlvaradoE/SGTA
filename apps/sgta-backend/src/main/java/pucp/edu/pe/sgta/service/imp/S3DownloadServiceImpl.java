@@ -15,6 +15,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Profile;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.cloudfront.CloudFrontUtilities;
@@ -27,6 +28,7 @@ import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Service
+@Profile("aws")  
 public class S3DownloadServiceImpl implements S3DownloadService {
     private final S3Client s3Client;
 
