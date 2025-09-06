@@ -25,6 +25,7 @@ import { Controller, useForm } from "react-hook-form";
 import { LoginFormInputs, loginSchema } from "../schemas/login-schema";
 import { SignUpForm } from "./signup-form";
 import AppLoading from "@/components/loading/app-loading";
+import { NewPasswordForm } from "./new-password-form";
 
 export function LoginForm({
   className,
@@ -39,6 +40,7 @@ export function LoginForm({
     redirectToDashboard,
     clearError,
     loginWithProvider,
+    isNewPasswordRequired,
   } = useAuth();
 
   const [showSignUp, setShowSignUp] = useState(false);
@@ -201,6 +203,18 @@ export function LoginForm({
             <DialogDescription>Crea tu cuenta para continuar</DialogDescription>
           </DialogHeader>
           <SignUpForm />
+        </DialogContent>
+      </Dialog>
+      {/* New Password Dialog */}
+      <Dialog open={isNewPasswordRequired}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Actualiza tu contraseña</DialogTitle>
+            <DialogDescription>
+              Debes cambiar tu contraseña para confirmar tu cuenta
+            </DialogDescription>
+          </DialogHeader>
+          <NewPasswordForm />
         </DialogContent>
       </Dialog>
     </div>
