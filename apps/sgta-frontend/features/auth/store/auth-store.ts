@@ -47,7 +47,12 @@ const initialState: AuthState = {
   isLoading: false,
   error: null,
   isAuthenticated: false,
+  isNewPasswordRequired: false,
 };
+
+// Temporary storage for Cognito challenge state
+let newPasswordUser: CognitoUser | null = null;
+let newPasswordAttributes: Record<string, string> = {};
 
 export const useAuthStore = create<AuthStore>()(
   persist(
@@ -122,7 +127,99 @@ export const useAuthStore = create<AuthStore>()(
               });
               reject(err);
             },
+            newPasswordRequired: (userAttributes) => {
+              // Store user and attributes for the challenge completion
+              delete userAttributes.email_verified;
+              newPasswordUser = cognitoUser;
+              newPasswordAttributes = userAttributes as Record<string, string>;
+              set({ isLoading: false, isNewPasswordRequired: true });
+              resolve();
+            },
           });
+        });
+      },
+      completeNewPassword: (newPassword: string) => {
+        set({ isLoading: true, error: null });
+        return new Promise<void>((resolve, reject) => {
+          if (!newPasswordUser) {
+            const err = new Error("No pending user for password update");
+            set({ isLoading: false, error: err.message });
+            return reject(err);
+          }
+
+          newPasswordUser.completeNewPasswordChallenge(
+            newPassword,
+            newPasswordAttributes,
+            {
+              onSuccess: (session) => {
+                const payload = session.getIdToken().payload;
+                const rawGroups = payload["cognito:groups"];
+                const roles: UserRole[] = Array.isArray(rawGroups)
+                  ? rawGroups.filter((g): g is UserRole =>
+                      [
+                        "administrador",
+                        "alumno",
+                        "jurado",
+                        "asesor",
+                        "coordinador",
+                        "revisor",
+                      ].includes(g),
+                    )
+                  : [];
+
+                const rawFirstName = payload["given_name"] as string;
+                const rawLastName = payload["family_name"] as string;
+                const fullName = (payload["name"] as string) || payload.email!;
+
+                let firstName = rawFirstName;
+                let lastName = rawLastName;
+                if (!firstName || !lastName) {
+                  const extracted = extractFirstAndLastName(fullName);
+                  firstName = firstName || extracted.firstName;
+                  lastName = lastName || extracted.lastName;
+                }
+
+                firstName = capitalizeNames(firstName);
+                lastName = capitalizeNames(lastName);
+
+                const newUser: User = {
+                  id: payload.sub!,
+                  name: fullName,
+                  firstName,
+                  lastName,
+                  email: payload.email!,
+                  avatar: "",
+                  roles,
+                };
+
+                set({
+                  user: newUser,
+                  idToken: session.getIdToken().getJwtToken(),
+                  accessToken: session.getAccessToken().getJwtToken(),
+                  isAuthenticated: true,
+                  isLoading: false,
+                  isNewPasswordRequired: false,
+                });
+
+                // Clear temporary challenge data
+                newPasswordUser = null;
+                newPasswordAttributes = {};
+
+                console.log(
+                  "✅ Password updated and login ID token payload:",
+                  payload,
+                );
+                resolve();
+              },
+              onFailure: (err) => {
+                set({
+                  error: err.message || JSON.stringify(err),
+                  isLoading: false,
+                });
+                reject(err);
+              },
+            },
+          );
         });
       },
       logout: () => {
@@ -254,6 +351,7 @@ export const useAuthStore = create<AuthStore>()(
                 idToken: backupToken,
                 isAuthenticated: true,
                 isLoading: false,
+                isNewPasswordRequired: false,
               });
               // Refresh the session markers
               sessionStorage.setItem("cognito_session_active", "true");
@@ -275,6 +373,7 @@ export const useAuthStore = create<AuthStore>()(
             accessToken: null,
             user: null,
             idToken: null,
+            isNewPasswordRequired: false,
           });
           return Promise.resolve();
         }
@@ -300,6 +399,7 @@ export const useAuthStore = create<AuthStore>()(
                   accessToken: null,
                   isAuthenticated: false,
                   isLoading: false,
+                  isNewPasswordRequired: false,
                 });
 
                 return resolve();
@@ -358,6 +458,7 @@ export const useAuthStore = create<AuthStore>()(
                 accessToken: accessToken,
                 isAuthenticated: true,
                 isLoading: false,
+                isNewPasswordRequired: false,
               });
               // Also update backup storage locations for better reliability
               localStorage.setItem("cognito_id_token", idToken);

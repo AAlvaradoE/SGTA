@@ -23,6 +23,8 @@ export interface AuthState {
   isLoading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  /** Indicates if Cognito requires the user to set a new password */
+  isNewPasswordRequired: boolean;
 }
 
 export interface AuthStore extends AuthState {
@@ -33,4 +35,6 @@ export interface AuthStore extends AuthState {
   confirmSignUp: (email: string, code: string) => Promise<void>;
   clearError: () => void;
   loginWithProvider: (provider: "Google") => void;
+  /** Completes the Cognito new password challenge */
+  completeNewPassword: (newPassword: string) => Promise<void>;
 }
