@@ -1,8 +1,27 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Environment variables
+
+Copy `.env.example` to `.env` and fill it with your Amazon Cognito values:
+
+```bash
+cp .env.example .env
+# then edit .env with the IDs and secret from your User Pool
+```
+
+Required variables:
+
+```
+NEXT_PUBLIC_COGNITO_USER_POOL_ID=us-west-2_XXXXXXXXX
+NEXT_PUBLIC_COGNITO_APP_CLIENT_ID=your_client_id
+NEXT_PUBLIC_COGNITO_APP_CLIENT_SECRET=your_client_secret
+NEXT_PUBLIC_COGNITO_DOMAIN=https://your-domain.auth.us-west-2.amazoncognito.com
+NEXT_PUBLIC_COGNITO_REDIRECT_URI=http://localhost:3000
+```
+
 ## Getting Started
 
-First, run the development server:
+After setting up the environment variables, run the development server:
 
 ```bash
 npm run dev
