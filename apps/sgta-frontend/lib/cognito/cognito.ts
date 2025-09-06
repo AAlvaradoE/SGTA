@@ -1,9 +1,18 @@
-import { CognitoUserPool } from "amazon-cognito-identity-js";
+import { CognitoUserPool, type ICognitoUserPoolData } from "amazon-cognito-identity-js";
 
-export const userPool = new CognitoUserPool({
+interface CognitoUserPoolDataWithSecret extends ICognitoUserPoolData {
+  ClientSecret?: string;
+}
+
+const clientSecret = process.env.NEXT_PUBLIC_COGNITO_APP_CLIENT_SECRET;
+
+const poolData: CognitoUserPoolDataWithSecret = {
   UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!,
   ClientId: process.env.NEXT_PUBLIC_COGNITO_APP_CLIENT_ID!,
-});
+  ...(clientSecret ? { ClientSecret: clientSecret } : {}),
+};
+
+export const userPool = new CognitoUserPool(poolData);
 
 export function getGoogleSignInUrl(): string {
   const domain = process.env.NEXT_PUBLIC_COGNITO_DOMAIN!;
