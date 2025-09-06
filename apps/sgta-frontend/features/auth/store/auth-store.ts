@@ -9,7 +9,6 @@ import {
   CognitoUserAttribute,
   CognitoUserSession,
 } from "amazon-cognito-identity-js";
-import { generateSecretHash } from "@/lib/cognito/generate-secret-hash";
 
 // Helper function to capitalize names properly with UTF-8 support
 const capitalizeNames = (name: string): string => {
@@ -63,15 +62,9 @@ export const useAuthStore = create<AuthStore>()(
             Username: email,
             Pool: userPool,
           });
-          const secretHash = generateSecretHash(
-            email,
-            process.env.NEXT_PUBLIC_COGNITO_APP_CLIENT_ID!,
-            process.env.NEXT_PUBLIC_COGNITO_APP_CLIENT_SECRET!,
-          );
           const authDetails = new AuthenticationDetails({
             Username: email,
             Password: password,
-            SecretHash: secretHash,
           });
 
           cognitoUser.authenticateUser(authDetails, {
