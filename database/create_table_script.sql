@@ -2,6 +2,11 @@
 -- Asegúrate de estar en el schema correcto si no lo has hecho globalmente
 --SET search_path TO sgtadb;
 
+
+CREATE SCHEMA IF NOT EXISTS sgtadb;
+SET search_path TO sgtadb;
+
+
 DO
 $$
     BEGIN
